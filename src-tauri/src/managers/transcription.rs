@@ -1173,6 +1173,72 @@ impl TranscriptionManager {
         .emit(&self.app_handle);
     }
 
+    /// Transcribe through the configured remote endpoint instead of a local
+    /// model.
+    ///
+    /// Mirrors the tail of the local path: the raw text goes through the same
+    /// custom-word and filler-word treatment, so downstream callers cannot tell
+    /// the two apart. `start` and `audio_len` come from the caller so the
+    /// reported timing covers the whole request, not just the parts measured
+    /// here.
+    fn transcribe_with_cloud(
+        &self,
+        settings: &AppSettings,
+        audio: &[f32],
+        start: std::time::Instant,
+        audio_len: usize,
+    ) -> Result<String> {
+        // "auto" means "let the provider decide", which is what mixed-language
+        // dictation wants; anything else is the user's explicit choice.
+        let language = match settings.selected_language.as_str() {
+            "auto" | "" => None,
+            language => Some(language),
+        };
+
+        let raw = crate::stt_client::transcribe_with_cloud(settings, audio, language)
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        // Custom words were handed to the endpoint as a vocabulary hint, so the
+        // fuzzy correction is skipped for the same reason the whisper path
+        // skips it — the model already had the spellings.
+        let custom_words_already_prompted = !settings.custom_words.is_empty();
+        let output_language = match language {
+            Some(language) => OutputLanguageEvidence::UserSelected(language.to_string()),
+            None => OutputLanguageEvidence::Unknown,
+        };
+
+        let filtered = post_process_transcription_text(
+            raw,
+            settings,
+            custom_words_already_prompted,
+            &output_language,
+            // The endpoint is not constrained to a fixed language set the way a
+            // local model is, so nothing narrows the evidence here.
+            &[],
+        );
+
+        let elapsed_secs = start.elapsed().as_secs_f64();
+        let audio_secs = audio_len as f64 / 16_000.0;
+        info!(
+            "Cloud transcription completed in {:.2}s for {:.2}s of audio ({:.2}x real-time) via {}",
+            elapsed_secs,
+            audio_secs,
+            real_time_factor(audio_secs, elapsed_secs),
+            settings.cloud_stt_model
+        );
+
+        if filtered.is_empty() {
+            info!("Transcription result is empty");
+        } else {
+            info!(
+                "Transcription result: {}",
+                crate::utils::redact_text(&filtered)
+            );
+        }
+
+        Ok(filtered)
+    }
+
     pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
         #[cfg(debug_assertions)]
         if std::env::var("HANDY_FORCE_TRANSCRIPTION_FAILURE").is_ok() {
@@ -1193,6 +1259,16 @@ impl TranscriptionManager {
             debug!("Empty audio vector");
             self.maybe_unload_immediately("empty audio");
             return Ok(String::new());
+        }
+
+        // Cloud transcription replaces the local engine entirely, so it is
+        // handled before the model-loaded check below — with it enabled there
+        // may be no local model at all.
+        {
+            let settings = get_settings(&self.app_handle);
+            if settings.cloud_stt_enabled {
+                return self.transcribe_with_cloud(&settings, &audio, st, audio_len);
+            }
         }
 
         // Check if model is loaded, if not try to load it

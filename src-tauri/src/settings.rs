@@ -457,6 +457,19 @@ pub struct AppSettings {
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
+    /// Send audio to a remote OpenAI-compatible endpoint instead of running a
+    /// local model. Off by default: Handy transcribes on-device unless the user
+    /// opts in.
+    #[serde(default)]
+    pub cloud_stt_enabled: bool,
+    /// Which entry of `post_process_providers` supplies the base URL and API
+    /// key for cloud transcription. Sharing the provider list means a key
+    /// entered for post-processing also serves transcription.
+    #[serde(default = "default_cloud_stt_provider_id")]
+    pub cloud_stt_provider_id: String,
+    /// Provider-specific transcription model id, e.g. `openai/gpt-transcribe`.
+    #[serde(default = "default_cloud_stt_model")]
+    pub cloud_stt_model: String,
     #[serde(default)]
     pub mute_while_recording: bool,
     #[serde(default)]
@@ -746,6 +759,17 @@ fn default_post_process_api_keys() -> SecretMap {
     SecretMap(map)
 }
 
+fn default_cloud_stt_provider_id() -> String {
+    "openrouter".to_string()
+}
+
+fn default_cloud_stt_model() -> String {
+    // Benchmarked against the alternatives OpenRouter exposes, this one keeps
+    // English technical terms in Latin script while transcribing surrounding
+    // speech in its own language, which is the case local models handle worst.
+    "openai/gpt-transcribe".to_string()
+}
+
 fn default_model_for_provider(provider_id: &str) -> String {
     if provider_id == APPLE_INTELLIGENCE_PROVIDER_ID {
         return APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string();
@@ -948,6 +972,9 @@ pub fn get_default_settings() -> AppSettings {
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
+        cloud_stt_enabled: false,
+        cloud_stt_provider_id: default_cloud_stt_provider_id(),
+        cloud_stt_model: default_cloud_stt_model(),
         mute_while_recording: false,
         append_trailing_space: false,
         app_language: default_app_language(),

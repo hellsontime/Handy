@@ -20,6 +20,7 @@ mod secure_input;
 mod settings;
 mod shortcut;
 mod signal_handle;
+mod stt_client;
 mod transcription_coordinator;
 mod tray;
 mod tray_i18n;
@@ -531,11 +532,19 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
 
     let tm = app.state::<Arc<TranscriptionManager>>();
 
-    let model_id = args
-        .model
-        .clone()
-        .unwrap_or_else(|| get_settings(app).selected_model);
-    if model_id.is_empty() {
+    // Cloud transcription never touches a local engine, so requiring one here
+    // (and paying for a cold load) would only get in the way. `--model` still
+    // forces the local path for a side-by-side comparison.
+    let cloud = get_settings(app).cloud_stt_enabled && args.model.is_none();
+
+    let model_id = if cloud {
+        String::new()
+    } else {
+        args.model
+            .clone()
+            .unwrap_or_else(|| get_settings(app).selected_model)
+    };
+    if !cloud && model_id.is_empty() {
         eprintln!("error: no model selected (pass --model or pick one in the app)");
         return 2;
     }
@@ -549,11 +558,13 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
         None => "settings".to_string(),
     };
 
-    // Cold load (timed).
+    // Cold load (timed). Skipped entirely on the cloud path.
     let load_start = Instant::now();
-    if let Err(e) = tm.load_model_with_device(&model_id, device_index) {
-        eprintln!("error: load_model('{}') failed: {}", model_id, e);
-        return 1;
+    if !cloud {
+        if let Err(e) = tm.load_model_with_device(&model_id, device_index) {
+            eprintln!("error: load_model('{}') failed: {}", model_id, e);
+            return 1;
+        }
     }
     let load_ms = load_start.elapsed().as_millis() as u64;
     let bound_backend = tm.current_backend();
@@ -565,7 +576,7 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
         // If the model's unload-timeout is "Immediately", transcribe() unloads
         // the engine after each run; reload (untimed) so repeats keep working
         // and the inference timing below stays clean.
-        if !tm.is_model_loaded() {
+        if !cloud && !tm.is_model_loaded() {
             if let Err(e) = tm.load_model_with_device(&model_id, device_index) {
                 eprintln!("error: reload before run {} failed: {}", i + 1, e);
                 return 1;
@@ -592,7 +603,8 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
         println!(
             "{}",
             serde_json::json!({
-                "model": model_id,
+                "model": if cloud { get_settings(app).cloud_stt_model } else { model_id.clone() },
+                "cloud": cloud,
                 "requested_device": requested_device,
                 "bound_backend": bound_backend,
                 "audio_secs": audio_secs,
@@ -606,7 +618,11 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
     } else {
         println!(
             "model={} device={} backend={} audio={:.2}s load={}ms best={}ms rtf={:.2}x",
-            model_id,
+            if cloud {
+                get_settings(app).cloud_stt_model
+            } else {
+                model_id.clone()
+            },
             requested_device,
             bound_backend.as_deref().unwrap_or("?"),
             audio_secs,
@@ -675,6 +691,9 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_clipboard_handling_setting,
             shortcut::change_auto_submit_setting,
             shortcut::change_auto_submit_key_setting,
+            shortcut::change_cloud_stt_enabled_setting,
+            shortcut::change_cloud_stt_provider_id_setting,
+            shortcut::change_cloud_stt_model_setting,
             shortcut::change_post_process_enabled_setting,
             shortcut::change_experimental_enabled_setting,
             shortcut::change_post_process_base_url_setting,

@@ -475,9 +475,13 @@ impl ShortcutAction for TranscribeAction {
         let tm = app.state::<Arc<TranscriptionManager>>();
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
-        // Load ASR model and VAD model in parallel
+        // Load ASR model and VAD model in parallel. With cloud transcription on
+        // there is no local inference to warm up, so the local engine is left
+        // unloaded rather than paged in for every recording.
         let kickoff_started = Instant::now();
-        tm.initiate_model_load();
+        if !get_settings(app).cloud_stt_enabled {
+            tm.initiate_model_load();
+        }
         let rm_clone = Arc::clone(&rm);
         std::thread::spawn(move || {
             if let Err(e) = rm_clone.preload_vad() {
@@ -503,10 +507,17 @@ impl ShortcutAction for TranscribeAction {
         // Use the app-facing model capability as the single pre-recording source
         // for live streaming decisions. Unknown support is represented as false
         // until the model registry is updated by discovery or runtime load.
-        let model_supports_streaming = selected_model_info
-            .as_ref()
-            .map(|m| m.supports_streaming)
-            .unwrap_or(false);
+        //
+        // Cloud transcription forces the batch path: live streaming feeds audio
+        // to a local engine frame by frame and `finalize_stream` returns its
+        // text directly, which would bypass the remote endpoint entirely. The
+        // batch path hands the whole recording to `transcribe`, where the cloud
+        // branch lives.
+        let model_supports_streaming = !settings.cloud_stt_enabled
+            && selected_model_info
+                .as_ref()
+                .map(|m| m.supports_streaming)
+                .unwrap_or(false);
         let vad_policy = if !settings.vad_enabled {
             VadPolicy::Disabled
         } else if model_supports_streaming {
