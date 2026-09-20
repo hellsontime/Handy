@@ -1,5 +1,30 @@
 # Handy
 
+> ### About this fork
+>
+> Upstream Handy is local-only for speech to text, by design — the maintainer has
+> [said so](https://github.com/cjpais/Handy/pull/804) repeatedly, and this fork does not
+> argue with that. It exists because I wanted one specific thing upstream will not ship:
+> dictation through a hosted transcription model.
+>
+> **What it adds.** A transcription engine selector on the Models page. Leave it on
+> _On this device_ and nothing changes — the local pipeline is untouched and stays the
+> default. Switch it to _Cloud_ and the recording goes to any OpenAI-compatible
+> `/audio/transcriptions` endpoint instead: OpenAI, OpenRouter, Groq, or your own
+> gateway. Provider, API key and model id are configured right there, and the API keys
+> are shared with the existing post-processing settings.
+>
+> **Why.** Local models transliterate foreign technical terms into the surrounding
+> language's script. Dictating a code review in a language other than English turns
+> `Kubernetes` and `Docker Compose` into phonetic nonsense. Hosted models get this right.
+> On a 107-second mixed Russian/English sample, `openai/gpt-transcribe` scored 5.4% WER
+> against 11.3% for the local model, and kept every technical term in Latin script.
+>
+> **Trade-off.** Cloud transcription sends your audio to a third party and costs money
+> per dictation. That is the whole reason it is off by default and always will be.
+>
+> Everything else in this README is upstream's and still applies.
+
 [![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/invite/WVBeWsNXK4)
 
 **A free, open source, and extensible speech-to-text application that works completely offline.**
