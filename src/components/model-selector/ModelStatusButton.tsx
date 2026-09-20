@@ -16,6 +16,9 @@ interface ModelStatusButtonProps {
   isDropdownOpen: boolean;
   onClick: () => void;
   className?: string;
+  /// A cloud engine has nothing to pick from locally, so the control drops the
+  /// chevron and stops being a button rather than opening an empty menu.
+  interactive?: boolean;
 }
 
 const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
@@ -24,6 +27,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
   isDropdownOpen,
   onClick,
   className = "",
+  interactive = true,
 }) => {
   const getStatusColor = (status: ModelStatus): string => {
     switch (status) {
@@ -48,14 +52,31 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
     }
   };
 
+  const indicator = (
+    <>
+      <div className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
+      <span className="max-w-28 truncate">{displayText}</span>
+    </>
+  );
+
+  if (!interactive) {
+    return (
+      <div
+        className={`flex items-center gap-2 ${className}`}
+        title={displayText}
+      >
+        {indicator}
+      </div>
+    );
+  }
+
   return (
     <button
       onClick={onClick}
       className={`flex items-center gap-2 hover:text-text/80 transition-colors ${className}`}
       title={`Model status: ${displayText}`}
     >
-      <div className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
-      <span className="max-w-28 truncate">{displayText}</span>
+      {indicator}
       <svg
         className={`w-3 h-3 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
         fill="none"

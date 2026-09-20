@@ -154,6 +154,12 @@ const settingUpdaters: {
   auto_submit_key: (value) =>
     commands.changeAutoSubmitKeySetting(value as string),
   history_limit: (value) => commands.updateHistoryLimit(value as number),
+  cloud_stt_enabled: (value) =>
+    commands.changeCloudSttEnabledSetting(value as boolean),
+  cloud_stt_provider_id: (value) =>
+    commands.changeCloudSttProviderIdSetting(value as string),
+  cloud_stt_model: (value) =>
+    commands.changeCloudSttModelSetting(value as string),
   post_process_enabled: (value) =>
     commands.changePostProcessEnabledSetting(value as boolean),
   post_process_selected_prompt_id: (value) =>

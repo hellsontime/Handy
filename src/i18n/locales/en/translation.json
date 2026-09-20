@@ -152,7 +152,8 @@
       "translation": "Can translate to English",
       "translate": "Translate",
       "streaming": "Shows live transcription as you speak"
-    }
+    },
+    "cloudEngine": "Cloud"
   },
   "settings": {
     "modelSettings": {
@@ -228,6 +229,29 @@
         "tooltip": "Rescan for models added to the models folder or Hugging Face cache outside Handy"
       },
       "noModelsMatch": "No models match this filter."
+    },
+    "transcriptionEngine": {
+      "engine": {
+        "title": "Transcription Engine",
+        "description": "What turns your speech into text: a model running on this Mac, or a remote OpenAI-compatible endpoint.",
+        "local": "On this device",
+        "localDescription": "Runs offline using a downloaded model",
+        "cloud": "Cloud",
+        "cloudDescription": "Sends audio to an OpenAI-compatible API"
+      },
+      "localInactive": "Cloud transcription is on, so the models below are not used.",
+      "provider": {
+        "title": "Provider",
+        "description": "The endpoint that receives the audio. Providers and their API keys are shared with post-processing."
+      },
+      "apiKey": {
+        "title": "API Key",
+        "description": "Stored per provider and reused by post-processing."
+      },
+      "model": {
+        "title": "Model",
+        "description": "Transcription model id as the provider spells it, for example openai/gpt-transcribe on OpenRouter."
+      }
     },
     "sound": {
       "title": "Sound",

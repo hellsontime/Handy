@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { commands } from "@/bindings";
 import { getTranslatedModelName } from "../../lib/utils/modelTranslation";
 import { useModelStore } from "../../stores/modelStore";
+import { useSettings } from "../../hooks/useSettings";
 import ModelStatusButton from "./ModelStatusButton";
 import ModelDropdown from "./ModelDropdown";
 import DownloadProgressDisplay from "./DownloadProgressDisplay";
@@ -35,6 +36,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     extractingModels,
     selectModel,
   } = useModelStore();
+
+  const { getSetting } = useSettings();
+  // With a cloud engine the local model is never loaded, so the footer reports
+  // the engine instead of a local model that has no bearing on transcription.
+  const cloudEnabled = getSetting("cloud_stt_enabled") ?? false;
+  const cloudModel = getSetting("cloud_stt_model") ?? "";
 
   const [modelStatus, setModelStatus] = useState<ModelStatus>("unloaded");
   const [modelError, setModelError] = useState<string | null>(null);
@@ -241,6 +248,18 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     if (Object.keys(downloadProgress).length > 0) return "downloading";
     return modelStatus;
   };
+
+  if (cloudEnabled) {
+    return (
+      <ModelStatusButton
+        status="ready"
+        displayText={`${t("modelSelector.cloudEngine")}${cloudModel ? ` · ${cloudModel}` : ""}`}
+        isDropdownOpen={false}
+        onClick={() => {}}
+        interactive={false}
+      />
+    );
+  }
 
   return (
     <>
