@@ -7,6 +7,7 @@ use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::StreamWorkKind;
 use crate::managers::transcription::TranscriptionManager;
+use crate::media_control::MediaControlManager;
 use crate::settings::{get_settings, AppSettings, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID};
 use crate::shortcut;
 use crate::tray::{set_tray_state, TrayIconState};
@@ -599,6 +600,9 @@ impl ShortcutAction for TranscribeAction {
                     }
                     if rm_clone.is_recording_readiness_current(generation) {
                         rm_clone.apply_mute();
+                        app_clone
+                            .state::<Arc<MediaControlManager>>()
+                            .pause_for_recording(&app_clone);
                     }
                 });
             }
@@ -675,6 +679,8 @@ impl ShortcutAction for TranscribeAction {
 
         // Unmute before playing audio feedback so the stop sound is audible
         rm.remove_mute();
+        app.state::<Arc<MediaControlManager>>()
+            .resume_after_recording();
 
         // Play audio feedback for recording stop
         play_feedback_sound(app, SoundType::Stop);

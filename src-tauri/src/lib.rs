@@ -12,6 +12,9 @@ mod helpers;
 mod input;
 mod llm_client;
 mod managers;
+mod media_control;
+#[cfg(target_os = "macos")]
+mod media_remote;
 mod memory;
 mod overlay;
 mod paste_tx;
@@ -37,6 +40,7 @@ use managers::audio::AudioRecordingManager;
 use managers::history::HistoryManager;
 use managers::model::ModelManager;
 use managers::transcription::TranscriptionManager;
+use media_control::MediaControlManager;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 use tauri::image::Image;
@@ -205,6 +209,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     );
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
+    let media_control_manager = Arc::new(MediaControlManager::new());
 
     // Initialize the transcribe-cpp native backend (logging + backend module
     // registration) once, before any whisper model is loaded.
@@ -218,6 +223,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(model_manager.clone());
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
+    app_handle.manage(media_control_manager);
     app_handle.manage(tray::TrayState::new());
 
     // Note: Shortcuts are NOT initialized here.
@@ -709,6 +715,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::suspend_all_bindings,
             shortcut::resume_all_bindings,
             shortcut::change_mute_while_recording_setting,
+            shortcut::change_pause_while_recording_setting,
             shortcut::change_append_trailing_space_setting,
             shortcut::change_lazy_stream_close_setting,
             shortcut::change_vad_enabled_setting,
@@ -1130,6 +1137,10 @@ pub fn run(cli_args: CliArgs) {
         tauri::RunEvent::Exit => {
             if let Some(tm) = app.try_state::<Arc<TranscriptionManager>>() {
                 let _ = tm.unload_model();
+            }
+            // Quitting mid-recording must not strand the user's media paused.
+            if let Some(mc) = app.try_state::<Arc<MediaControlManager>>() {
+                mc.resume_after_recording();
             }
         }
         _ => {}

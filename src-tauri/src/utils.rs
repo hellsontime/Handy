@@ -1,5 +1,6 @@
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::transcription::TranscriptionManager;
+use crate::media_control::MediaControlManager;
 use crate::shortcut;
 use crate::TranscriptionCoordinator;
 use log::info;
@@ -93,6 +94,11 @@ pub fn cancel_current_operation(app: &AppHandle) {
     let audio_manager = app.state::<Arc<AudioRecordingManager>>();
     let recording_was_active = audio_manager.is_recording();
     audio_manager.cancel_recording();
+
+    // Cancelling bypasses TranscribeAction::stop, so resume media here too —
+    // otherwise a cancelled recording could strand the user's music paused.
+    app.state::<Arc<MediaControlManager>>()
+        .resume_after_recording();
 
     // Abandon any live streaming transcription
     let tm = app.state::<Arc<TranscriptionManager>>();
