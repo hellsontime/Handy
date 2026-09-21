@@ -1,1 +1,11 @@
 [build]
+
+# Re-sign local macOS debug builds with a stable identity before running them,
+# so Accessibility/Microphone TCC grants survive rebuilds during `cargo run`,
+# `cargo test`, and `tauri dev`. No-ops on machines without the local
+# certificate installed (CI, other contributors) — see scripts/sign-dev-binary.sh.
+[target.aarch64-apple-darwin]
+runner = "scripts/sign-dev-binary.sh"
+
+[target.x86_64-apple-darwin]
+runner = "scripts/sign-dev-binary.sh"
