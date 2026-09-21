@@ -472,6 +472,11 @@ pub struct AppSettings {
     pub cloud_stt_model: String,
     #[serde(default)]
     pub mute_while_recording: bool,
+    /// Pause any playing media (Spotify, a browser tab, etc.) through the OS
+    /// media-session controls when a recording starts, and resume it once the
+    /// recording ends. Independent of `mute_while_recording`.
+    #[serde(default)]
+    pub pause_while_recording: bool,
     #[serde(default)]
     pub append_trailing_space: bool,
     #[serde(default = "default_app_language")]
@@ -976,6 +981,7 @@ pub fn get_default_settings() -> AppSettings {
         cloud_stt_provider_id: default_cloud_stt_provider_id(),
         cloud_stt_model: default_cloud_stt_model(),
         mute_while_recording: false,
+        pause_while_recording: false,
         append_trailing_space: false,
         app_language: default_app_language(),
         theme: default_theme(),
@@ -1395,6 +1401,7 @@ mod tests {
             ],
             "post_process_selected_prompt_id": null,
             "mute_while_recording": false,
+            "pause_while_recording": false,
             "append_trailing_space": false,
             "app_language": "en",
             "experimental_enabled": false,

@@ -125,6 +125,12 @@ windows = { version = "0.61.3", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
   "Win32_UI_WindowsAndMessaging",
+  # For pause_while_recording: GlobalSystemMediaTransportControlsSession
+  # (the surface the hardware media keys drive) to pause/resume playback.
+  "Foundation",
+  "Foundation_Collections",
+  "Media_Control",
+  "Win32_System_WinRT",
 ] }
 winreg = "0.55"
 
@@ -168,6 +174,8 @@ transcribe-cpp = { version = "0.2.3", default-features = false, features = [
   "dynamic-backends",
   "vulkan",
 ] }
+# For pause_while_recording: MPRIS over the session D-Bus.
+zbus = "4.4.0"
 
 # TEMPORARY: tao pinned past 0.35.3 for the Wayland client-side-decorations fix
 # (tao #1218, fixes tauri #11856 — dead titlebar buttons after visible(false) →
